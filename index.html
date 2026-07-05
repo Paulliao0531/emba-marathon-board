@@ -68,6 +68,7 @@
     opacity:.6;
   }
   header h1{ margin:0 0 8px; font-size:clamp(2rem, 5vw, 2.6rem); font-weight:800; letter-spacing:.5px; text-shadow:0 2px 5px rgba(5,20,45,.55), 0 3px 0 rgba(5,20,45,.5);}
+  .brand-title{ height:4em; width:auto; vertical-align:middle; }
   .run-emoji{ display:inline-block; vertical-align:middle; filter:drop-shadow(0 2px 3px rgba(5,20,45,.35)); }
   .run-emoji img{ display:block; height:4em; width:auto; }
   @keyframes bounce{ 0%,100%{transform:translateY(0) rotate(0);} 30%{transform:translateY(-6px) rotate(-8deg);} 50%{transform:translateY(0) rotate(0);} 70%{transform:translateY(-3px) rotate(6deg);} }
@@ -125,7 +126,7 @@
     font-size:.76rem; cursor:pointer; padding:4px 10px; border-radius:999px; opacity:.9; box-shadow:0 2px 6px rgba(0,0,0,.12); font-weight:600;
   }
   .topic-delete-btn:hover{ background:#ffe3e3; opacity:1; }
-  .topic-card h3{ margin:0 0 8px; font-size:1.08rem; padding-right:70px; font-weight:700; }
+  .topic-card h3{ margin:0 0 8px; font-size:1.35rem; padding-right:70px; font-weight:700; }
   .topic-card .preview{ color:var(--muted); font-size:.85rem; margin-bottom:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .topic-card .meta{ font-size:.75rem; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-weight:500; }
   .topic-card .meta b{ color:var(--accent-dark); }
@@ -163,7 +164,7 @@
   #thread-view{ display:none; }
   .thread-header{ margin-bottom:18px; background:linear-gradient(180deg,#fff,#f0f7ff); border:none; border-radius:var(--radius); padding:18px 20px; border-top:8px solid var(--accent3); box-shadow:0 6px 0 rgba(0,0,0,.05), 0 14px 26px rgba(20,55,100,.1); }
   .thread-header .back-btn{ margin-bottom:10px; }
-  .thread-header h2{ margin:0 0 6px; font-size:1.25rem; font-weight:800; }
+  .thread-header h2{ margin:0 0 6px; font-size:1.6rem; font-weight:800; }
   .thread-header .meta{ color:var(--muted); font-size:.8rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:500; }
 
   .top-reply-box{ margin:18px 0 24px; background:linear-gradient(180deg,#fff,#f0f7ff); border:none; border-radius:var(--radius); padding:16px; box-shadow:0 6px 0 rgba(0,0,0,.05), 0 12px 22px rgba(20,55,100,.08); }
@@ -201,7 +202,7 @@
 <div id="status-banner">⚠️ 尚未連接資料庫：目前為離線示範模式，資料不會與其他人同步（請依教學設定 Firebase）。</div>
 
 <header>
-  <h1><span class="run-emoji" aria-hidden="true"><img src="松鼠.png" alt="" width="347" height="400" decoding="async"></span> 中央漾跑社 2026全國E馬討論區</h1>
+  <h1><span class="run-emoji" aria-hidden="true"><img src="松鼠.png" alt="" width="347" height="400" decoding="async"></span> <img class="brand-title" src="中央漾跑社.png" alt="中央漾跑社" decoding="async"><br>2026全國E馬討論區</h1>
   <p>發起議題、串連討論，所有人即時可見，一鍵整理匯出</p>
   <div class="topbar">
     <button class="btn primary" id="btn-new-topic">＋ 新增議題</button>
