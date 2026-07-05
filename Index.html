@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中央漾跑社 2026全國E馬討論區</title>
+
+<script>
+  const firebaseConfig = {
+    	apiKey: "AIzaSyBdq-WDTT6fg5aCxzjDAE7D-ZQjPb6uVq4",
+  	authDomain: "e-run-d2283.firebaseapp.com",
+  	databaseURL: "https://e-run-d2283-default-rtdb.firebaseio.com",
+  	projectId: "e-run-d2283",
+  	storageBucket: "e-run-d2283.firebasestorage.app",
+  	messagingSenderId: "920076932535",
+  	appId: "1:920076932535:web:301efd1dea3ef406814432"
+  };
+  const ADMIN_PASSWORD = "emba2026"; // 管理者密碼，可刪除任何人的留言／議題，請務必自行更改
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --ink:#122a45; --muted:#3d5f83; --line:#cfe4f5;
+    --accent:#4a90d9; --accent-dark:#2c6cb0;
+    --accent2:#3ec6d9; --accent2-dark:#1f9fb3;
+    --accent3:#7b93db; --accent3-dark:#5470c4;
+    --accent4:#8fd6ff; --accent4-dark:#57b8ec;
+    --accent-light:#d9ecff;
+    --card:#f7fbff; --radius:24px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:Arial,"Microsoft JhengHei",sans-serif;
+    background:
+      radial-gradient(circle at 15% -5%, #eaf5ff 0%, transparent 40%),
+      radial-gradient(circle at 100% 0%, #cdeeff 0%, transparent 45%),
+      radial-gradient(circle at 85% 90%, #dbe6ff 0%, transparent 40%),
+      radial-gradient(circle at 0% 80%, #d6f3ff 0%, transparent 40%),
+      linear-gradient(180deg,#e7f4ff 0%, #f4f9ff 100%);
+    background-attachment:fixed;
+    color:var(--ink);
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before, body::after{
+    content:""; position:fixed; border-radius:50%; opacity:.55; pointer-events:none; z-index:0;
+  }
+  body::before{ width:120px; height:120px; top:8%; left:6%; animation:floaty 7s ease-in-out infinite; background:radial-gradient(circle at 30% 30%,#fff,rgba(255,255,255,0) 70%), var(--accent3);}
+  body::after{ width:90px; height:90px; top:65%; right:8%; animation:floaty 9s ease-in-out infinite 1s; background:radial-gradient(circle at 30% 30%,#fff,rgba(255,255,255,0) 70%), var(--accent2);}
+  @keyframes floaty{ 0%,100%{transform:translateY(0) translateX(0);} 50%{transform:translateY(-22px) translateX(10px);} }
+
+  header{
+    padding:34px 24px 22px; text-align:center; position:relative; overflow:hidden; z-index:1;
+    background:linear-gradient(160deg,#3f7fc9 0%, var(--accent) 45%, var(--accent-dark) 100%);
+    color:#fff;
+    border-radius:0 0 40px 40px;
+    box-shadow:0 10px 0 rgba(20,60,110,.25), 0 20px 40px rgba(20,60,110,.25);
+  }
+  header::before{ content:""; position:absolute; top:-40px; right:-40px; width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,.15); }
+  header::after{
+    content:""; display:block; height:6px; margin-top:18px;
+    background-image:repeating-linear-gradient(90deg,#fff 0 18px, transparent 18px 32px);
+    opacity:.6;
+  }
+  header h1{ margin:0 0 8px; font-size:clamp(2rem, 5vw, 2.6rem); font-weight:800; letter-spacing:.5px; text-shadow:0 2px 5px rgba(5,20,45,.55), 0 3px 0 rgba(5,20,45,.5);}
+  .run-emoji{ display:inline-block; animation:bounce 1.6s ease-in-out infinite; vertical-align:middle; filter:drop-shadow(0 2px 3px rgba(5,20,45,.35)); }
+  .run-emoji img{ display:block; height:4em; width:auto; }
+  @keyframes bounce{ 0%,100%{transform:translateY(0) rotate(0);} 30%{transform:translateY(-6px) rotate(-8deg);} 50%{transform:translateY(0) rotate(0);} 70%{transform:translateY(-3px) rotate(6deg);} }
+  header p{ margin:0; opacity:1; font-size:.92rem; font-weight:600; text-shadow:0 1px 4px rgba(5,20,45,.45);}
+  .topbar{ display:flex; justify-content:center; gap:12px; margin-top:18px; flex-wrap:wrap; }
+  .btn{
+    border:none; color:#fff; font-weight:700; font-family:inherit; text-shadow:0 1px 2px rgba(0,0,0,.35);
+    background:linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,.08));
+    padding:10px 18px; border-radius:999px; cursor:pointer; font-size:.85rem;
+    box-shadow:0 4px 0 rgba(0,0,0,.18), 0 8px 14px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.5);
+    transition:transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s ease;
+  }
+  .btn:hover{ background:linear-gradient(180deg, rgba(255,255,255,.4), rgba(255,255,255,.1)); transform:translateY(-3px); box-shadow:0 6px 0 rgba(0,0,0,.18), 0 14px 20px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.6);}
+  .btn:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.2); }
+  .btn.primary{ background:linear-gradient(180deg,#fff,#eaf5ff); color:var(--accent-dark); border:none; font-weight:700; text-shadow:none; box-shadow:0 4px 0 #c3d9ee, 0 8px 14px rgba(0,0,0,.15), inset 0 1px 0 #fff;}
+  .btn.primary:hover{ background:linear-gradient(180deg,#fff,#eaf5ff); opacity:1; box-shadow:0 6px 0 #c3d9ee, 0 14px 20px rgba(0,0,0,.18), inset 0 1px 0 #fff;}
+  .btn.small{ padding:6px 14px; font-size:.76rem;}
+  .btn.ghost{ background:#fff; border-color:var(--line); color:var(--ink); text-shadow:none; box-shadow:0 3px 0 var(--line), 0 6px 12px rgba(0,0,0,.08);}
+  .btn.ghost:hover{ background:#fff; transform:translateY(-2px); }
+  .btn.admin-on{ background:linear-gradient(180deg,#5fd4e6,var(--accent2)); border-color:var(--accent2); color:#fff; font-weight:700; box-shadow:0 4px 0 var(--accent2-dark), 0 8px 14px rgba(0,0,0,.2); }
+  .btn.danger-text{ background:none; border:none; color:#d64545; padding:0; font-size:.74rem; box-shadow:none; font-weight:600; }
+
+  #status-banner{
+    display:none; background:#dcecff; color:#2c5a8a; text-align:center;
+    padding:9px; font-size:.82rem; border-bottom:3px solid #a8cdf0; font-weight:600; position:relative; z-index:2;
+  }
+
+  main{ max-width:820px; margin:0 auto; padding:26px 16px 60px; position:relative; z-index:1; }
+
+  .stat-chips{ display:flex; gap:12px; justify-content:center; margin:-30px auto 26px; flex-wrap:wrap; position:relative; z-index:2;}
+  .stat-chip{
+    background:linear-gradient(180deg,#fff,#f0f7ff); border-radius:18px; padding:12px 20px;
+    box-shadow:0 5px 0 var(--line), 0 10px 20px rgba(0,0,0,.1);
+    font-size:.8rem; color:var(--muted); text-align:center; min-width:104px; font-weight:600;
+  }
+  .stat-chip b{ display:block; font-size:1.3rem; color:var(--accent-dark); font-family:Arial,sans-serif; }
+
+  @keyframes fadeInUp{ from{ opacity:0; transform:translateY(14px) scale(.97);} to{ opacity:1; transform:translateY(0) scale(1);} }
+
+  #topics-view .list-toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;}
+  #topics-view .list-toolbar input{
+    border:2px solid var(--line); border-radius:999px; padding:9px 16px; font-size:.85rem; width:220px; font-family:inherit;
+    background:#fff; box-shadow:inset 0 2px 4px rgba(0,0,0,.04);
+  }
+  #topics-view .list-toolbar input:focus{ outline:none; border-color:var(--accent3); }
+  .topic-card{
+    background:linear-gradient(180deg,#ffffff,#f0f7ff); border:none; border-radius:var(--radius);
+    padding:18px 20px 16px; margin-bottom:16px; cursor:pointer; transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+    border-top:8px solid var(--accent); animation:fadeInUp .4s cubic-bezier(.34,1.56,.64,1) both;
+    box-shadow:0 6px 0 rgba(0,0,0,.05), 0 14px 26px rgba(20,55,100,.1); position:relative;
+  }
+  .topic-card:hover{ transform:translateY(-5px) scale(1.01); box-shadow:0 10px 0 rgba(0,0,0,.06), 0 22px 34px rgba(20,55,100,.15);}
+  .topic-delete-btn{
+    position:absolute; top:14px; right:16px; background:#fff; border:none; color:#d64545;
+    font-size:.76rem; cursor:pointer; padding:4px 10px; border-radius:999px; opacity:.9; box-shadow:0 2px 6px rgba(0,0,0,.12); font-weight:600;
+  }
+  .topic-delete-btn:hover{ background:#ffe3e3; opacity:1; }
+  .topic-card h3{ margin:0 0 8px; font-size:1.08rem; padding-right:70px; font-weight:700; }
+  .topic-card .preview{ color:var(--muted); font-size:.85rem; margin-bottom:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topic-card .meta{ font-size:.75rem; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-weight:500; }
+  .topic-card .meta b{ color:var(--accent-dark); }
+  .empty-hint{ color:var(--muted); font-size:.95rem; text-align:center; padding:60px 0; }
+  .empty-hint .big{ font-size:3rem; display:block; margin-bottom:14px; animation:bounce 1.8s ease-in-out infinite; }
+
+  .new-badge{
+    background:linear-gradient(180deg,#5fd4e6,var(--accent2)); color:#fff; font-size:.64rem; font-weight:800;
+    padding:3px 10px; border-radius:999px; letter-spacing:.3px; white-space:nowrap; box-shadow:0 2px 0 var(--accent2-dark);
+  }
+  .topic-card.is-recent{ box-shadow:0 0 0 3px rgba(62,198,217,.35), 0 6px 0 rgba(0,0,0,.05), 0 14px 26px rgba(20,55,100,.1); }
+  .post .post-card.is-recent{ background:linear-gradient(180deg,#eefaff,#e2f4fb); box-shadow:0 0 0 2px #b8e5f0, 0 4px 10px rgba(0,0,0,.05); }
+
+  .avatar{
+    display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
+    border-radius:50%; color:#fff; font-size:.7rem; font-weight:800; flex-shrink:0;
+    box-shadow:inset 0 -3px 4px rgba(0,0,0,.2), inset 0 2px 2px rgba(255,255,255,.5), 0 2px 4px rgba(0,0,0,.15);
+  }
+  .avatar.lg{ width:34px; height:34px; font-size:.85rem; }
+
+  .modal-mask{
+    display:none; position:fixed; inset:0; background:rgba(10,30,55,.45); z-index:60; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(2px);
+  }
+  .modal-mask.open{ display:flex; }
+  .modal-box{ background:linear-gradient(180deg,#fff,#f0f7ff); border-radius:26px; padding:26px; width:min(480px,94vw); animation:popIn .3s cubic-bezier(.34,1.56,.64,1) both; box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  @keyframes popIn{ from{opacity:0; transform:scale(.85) translateY(10px);} to{opacity:1; transform:scale(1) translateY(0);} }
+  .modal-box h3{ margin-top:0; font-weight:800; }
+  .modal-box input, .modal-box textarea{
+    width:100%; border:2px solid var(--line); border-radius:14px; padding:10px 12px;
+    font-size:.9rem; font-family:inherit; margin-bottom:10px; resize:vertical; background:#f5faff;
+  }
+  .modal-box input:focus, .modal-box textarea:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-light); }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; }
+
+  #thread-view{ display:none; }
+  .thread-header{ margin-bottom:18px; background:linear-gradient(180deg,#fff,#f0f7ff); border:none; border-radius:var(--radius); padding:18px 20px; border-top:8px solid var(--accent3); box-shadow:0 6px 0 rgba(0,0,0,.05), 0 14px 26px rgba(20,55,100,.1); }
+  .thread-header .back-btn{ margin-bottom:10px; }
+  .thread-header h2{ margin:0 0 6px; font-size:1.25rem; font-weight:800; }
+  .thread-header .meta{ color:var(--muted); font-size:.8rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:500; }
+
+  .top-reply-box{ margin:18px 0 24px; background:linear-gradient(180deg,#fff,#f0f7ff); border:none; border-radius:var(--radius); padding:16px; box-shadow:0 6px 0 rgba(0,0,0,.05), 0 12px 22px rgba(20,55,100,.08); }
+  .top-reply-box textarea{
+    width:100%; border:2px solid var(--line); border-radius:14px; padding:10px 12px;
+    font-size:.88rem; font-family:inherit; resize:vertical; margin-bottom:10px; background:#f5faff;
+  }
+  .top-reply-box textarea:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-light); }
+
+  .post{ position:relative; margin-top:14px; animation:fadeInUp .3s cubic-bezier(.34,1.56,.64,1) both; }
+  .post .post-card{
+    background:linear-gradient(180deg,#fff,#f5faff); border:none; border-radius:16px; padding:12px 16px;
+    box-shadow:0 3px 0 rgba(0,0,0,.04), 0 6px 14px rgba(0,0,0,.06);
+  }
+  .post .post-meta{ font-size:.74rem; color:var(--muted); margin-bottom:6px; display:flex; gap:8px; align-items:center; font-weight:500; }
+  .post .post-meta .author{ color:var(--ink); font-weight:700; }
+  .post .post-content{ font-size:.9rem; white-space:pre-wrap; margin-bottom:8px; line-height:1.5; }
+  .post .post-actions{ display:flex; gap:16px; align-items:center; }
+  .post .post-actions button{ background:none; border:none; color:var(--muted); font-size:.76rem; cursor:pointer; padding:0; font-weight:600; }
+  .post .post-actions button:hover{ color:var(--accent-dark); }
+  .reply-box{ display:none; margin-top:10px; }
+  .reply-box.open{ display:block; animation:fadeInUp .2s ease both; }
+  .reply-box textarea{
+    width:100%; border:2px solid var(--line); border-radius:12px; padding:8px 10px;
+    font-size:.85rem; font-family:inherit; resize:vertical; margin-bottom:8px; background:#f5faff;
+  }
+  .children{ padding-left:18px; margin-left:12px; }
+  .children .post{ border-left:4px solid var(--depth-color, var(--line)); padding-left:14px; margin-left:-4px; border-radius:2px; }
+
+  footer{ text-align:center; color:var(--muted); font-size:.75rem; padding:24px; position:relative; z-index:1; font-weight:500; }
+</style>
+</head>
+<body>
+
+<div id="status-banner">⚠️ 尚未連接資料庫：目前為離線示範模式，資料不會與其他人同步（請依教學設定 Firebase）。</div>
+
+<header>
+  <h1><span class="run-emoji" aria-hidden="true"><img src="松鼠.png" alt="" width="500" height="622" decoding="async"></span> 中央漾跑社 2026全國E馬討論區</h1>
+  <p>發起議題、串連討論，所有人即時可見，一鍵整理匯出</p>
+  <div class="topbar">
+    <button class="btn primary" id="btn-new-topic">＋ 新增議題</button>
+    <button class="btn" id="btn-export-excel">⬇️ 匯出討論 Excel</button>
+    <button class="btn" id="btn-admin-toggle">🔐 管理者模式</button>
+    <button class="btn" id="btn-change-name">👤 <span id="current-name">設定姓名</span></button>
+  </div>
+</header>
+
+<main>
+  <div class="stat-chips">
+    <div class="stat-chip"><b id="stat-topics">0</b>議題數</div>
+    <div class="stat-chip"><b id="stat-posts">0</b>留言數</div>
+    <div class="stat-chip"><b id="stat-people">0</b>參與人數</div>
+  </div>
+
+  <div id="topics-view">
+    <div class="list-toolbar">
+      <span style="color:var(--muted); font-size:.85rem;" id="topic-count-label">共 0 個議題</span>
+      <input type="text" id="topic-search" placeholder="搜尋議題標題…">
+    </div>
+    <div id="topics-list"></div>
+  </div>
+
+  <div id="thread-view">
+    <div class="thread-header">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn small ghost back-btn" id="btn-back">← 返回議題列表</button>
+        <button class="btn small" id="btn-delete-topic" style="display:none; background:#c0392b; color:#fff; border-color:#c0392b;">🗑 刪除整個議題（管理者）</button>
+      </div>
+      <h2 id="thread-title"></h2>
+      <div class="meta" id="thread-meta"></div>
+    </div>
+    <div class="top-reply-box">
+      <textarea id="top-reply-content" rows="2" placeholder="在這個議題下發表新留言…"></textarea>
+      <button class="btn primary small" id="btn-top-reply" style="color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);background:var(--accent-dark);border-color:var(--accent-dark);">送出留言</button>
+    </div>
+    <div id="posts-container"></div>
+  </div>
+</main>
+
+<footer>全國EMBA馬拉松籌備小組 · 討論串協作板</footer>
+
+<div class="modal-mask" id="new-topic-mask">
+  <div class="modal-box">
+    <h3>🆕 新增議題</h3>
+    <input type="text" id="new-topic-title" placeholder="議題標題，例如：補給站規劃">
+    <div class="modal-actions">
+      <button class="btn ghost" id="new-topic-cancel">取消</button>
+      <button class="btn primary" id="new-topic-submit" style="background:var(--accent-dark);color:#fff;border-color:var(--accent-dark);text-shadow:0 1px 2px rgba(0,0,0,.35);">建立議題</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="name-modal-mask">
+  <div class="modal-box" style="text-align:center;">
+    <h3>👤 你的姓名</h3>
+    <p style="color:var(--muted); font-size:.85rem;">用於標示你發表的留言，之後可再修改</p>
+    <input type="text" id="name-input" placeholder="例如：Paul">
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn primary" id="name-save" style="background:var(--accent-dark);color:#fff;border-color:var(--accent-dark);text-shadow:0 1px 2px rgba(0,0,0,.35);">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let topicsRef = null, postsRef = null;
+let topics = {};
+let posts = {};
+let offlineMode = false;
+let offlineTopics = JSON.parse(localStorage.getItem("emba_offline_topics") || "{}");
+let offlinePosts = JSON.parse(localStorage.getItem("emba_offline_posts") || "{}");
+let idCounter = 0;
+let isAdmin = false;
+
+function isConfigured(cfg){ return cfg && cfg.databaseURL && !cfg.databaseURL.includes("請貼上"); }
+
+try{
+  if(isConfigured(firebaseConfig)){
+    firebase.initializeApp(firebaseConfig);
+    topicsRef = firebase.database().ref("topics");
+    postsRef = firebase.database().ref("posts");
+    topicsRef.on("value", snap => { topics = snap.val() || {}; rerenderCurrentView(); });
+    postsRef.on("value", snap => { posts = snap.val() || {}; rerenderCurrentView(); });
+  } else {
+    throw new Error("no config");
+  }
+}catch(e){
+  offlineMode = true;
+  topics = offlineTopics;
+  posts = offlinePosts;
+  document.getElementById("status-banner").style.display = "block";
+}
+
+function newId(prefix){ return prefix + "_" + Date.now() + "_" + (++idCounter); }
+
+function saveTopic(record){
+  if(offlineMode){
+    const id = newId("t");
+    offlineTopics[id] = record;
+    localStorage.setItem("emba_offline_topics", JSON.stringify(offlineTopics));
+    topics = offlineTopics;
+    return id;
+  } else {
+    const ref = topicsRef.push(record);
+    return ref.key;
+  }
+}
+function savePost(record){
+  if(offlineMode){
+    const id = newId("p");
+    offlinePosts[id] = record;
+    localStorage.setItem("emba_offline_posts", JSON.stringify(offlinePosts));
+    posts = offlinePosts;
+    rerenderCurrentView();
+    return id;
+  } else {
+    const ref = postsRef.push(record);
+    return ref.key;
+  }
+}
+
+function collectDescendants(postId, acc){
+  acc.push(postId);
+  Object.entries(posts).filter(([id,p]) => p.parentId === postId).forEach(([id]) => collectDescendants(id, acc));
+  return acc;
+}
+
+function deletePost(postId){
+  const post = posts[postId];
+  if(!post) return;
+  const isOwner = post.author === getUserName();
+  if(!isOwner && !isAdmin){ alert("只能刪除自己發表的留言喔"); return; }
+  const ids = collectDescendants(postId, []);
+  const msg = ids.length > 1
+    ? `這則留言底下還有 ${ids.length - 1} 則回覆，刪除後會一併移除，確定嗎？`
+    : "確定要刪除這則留言嗎？";
+  if(!confirm(msg)) return;
+
+  if(offlineMode){
+    ids.forEach(id => delete offlinePosts[id]);
+    localStorage.setItem("emba_offline_posts", JSON.stringify(offlinePosts));
+    posts = offlinePosts;
+    rerenderCurrentView();
+  } else {
+    const updates = {};
+    ids.forEach(id => updates[id] = null);
+    postsRef.update(updates);
+  }
+}
+
+function deleteTopic(topicId){
+  if(!isAdmin){ alert("只有管理者可以刪除議題"); return; }
+  const t = topics[topicId];
+  if(!t) return;
+  const relatedPostIds = Object.entries(posts).filter(([id,p]) => p.topicId===topicId).map(([id]) => id);
+  const msg = `確定要刪除議題「${t.title}」嗎？底下的 ${relatedPostIds.length} 則留言也會一併刪除，此動作無法復原。`;
+  if(!confirm(msg)) return;
+
+  if(offlineMode){
+    delete offlineTopics[topicId];
+    relatedPostIds.forEach(id => delete offlinePosts[id]);
+    localStorage.setItem("emba_offline_topics", JSON.stringify(offlineTopics));
+    localStorage.setItem("emba_offline_posts", JSON.stringify(offlinePosts));
+    topics = offlineTopics;
+    posts = offlinePosts;
+    if(currentTopicId === topicId){ document.getElementById("btn-back").click(); } else { rerenderCurrentView(); }
+  } else {
+    topicsRef.child(topicId).remove();
+    if(relatedPostIds.length){
+      const updates = {};
+      relatedPostIds.forEach(id => updates[id] = null);
+      postsRef.update(updates);
+    }
+    if(currentTopicId === topicId){ document.getElementById("btn-back").click(); }
+  }
+}
+
+function rerenderCurrentView(){
+  updateStats();
+  if(document.getElementById("thread-view").style.display === "block" && currentTopicId){
+    renderThread(currentTopicId);
+  } else {
+    renderTopicsList();
+  }
+}
+
+function getUserName(){ return localStorage.getItem("emba_user_name") || ""; }
+function setUserName(name){ localStorage.setItem("emba_user_name", name); document.getElementById("current-name").textContent = name || "設定姓名"; }
+document.getElementById("btn-change-name").onclick = () => {
+  document.getElementById("name-input").value = getUserName();
+  document.getElementById("name-modal-mask").classList.add("open");
+};
+document.getElementById("name-save").onclick = () => {
+  const v = document.getElementById("name-input").value.trim();
+  if(v) setUserName(v);
+  document.getElementById("name-modal-mask").classList.remove("open");
+  rerenderCurrentView();
+};
+setUserName(getUserName());
+if(!getUserName()) document.getElementById("btn-change-name").click();
+
+const adminBtn = document.getElementById("btn-admin-toggle");
+adminBtn.onclick = () => {
+  if(isAdmin){
+    isAdmin = false;
+    adminBtn.textContent = "🔐 管理者模式";
+    adminBtn.classList.remove("admin-on");
+  } else {
+    const pw = prompt("請輸入管理者密碼：");
+    if(pw === null) return;
+    if(pw !== ADMIN_PASSWORD){ alert("密碼錯誤"); return; }
+    isAdmin = true;
+    adminBtn.textContent = "🔓 管理者模式中";
+    adminBtn.classList.add("admin-on");
+  }
+  rerenderCurrentView();
+};
+
+const AVATAR_COLORS = ["#2f6fb0","#1f9fb3","#5470c4","#3d84c9","#7b5fc9","#2e8fa0","#4f9fc9","#4770a0"];
+function hashName(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+  return h;
+}
+function avatarColor(name){ return AVATAR_COLORS[hashName(name||"匿名") % AVATAR_COLORS.length]; }
+function avatarHtml(name, size){
+  const n = name || "匿名";
+  const initial = n.trim().slice(0,1).toUpperCase();
+  return `<span class="avatar ${size==='lg'?'lg':''}" style="background:${avatarColor(n)}">${escapeHtml(initial)}</span>`;
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function fmtTime(ts){
+  if(!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleString("zh-TW", {month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"});
+}
+function isRecent(ts){
+  return !!ts && (Date.now() - ts) < (3 * 24 * 60 * 60 * 1000);
+}
+function getReplies(topicId, parentId){
+  return Object.entries(posts).filter(([id,p]) => p.topicId===topicId && (p.parentId||null)===(parentId||null))
+    .sort((a,b) => (a[1].createdAt||0) - (b[1].createdAt||0));
+}
+function getTopicStats(topicId){
+  const all = Object.values(posts).filter(p => p.topicId===topicId);
+  const count = all.length;
+  const last = all.reduce((max,p) => Math.max(max, p.createdAt||0), 0);
+  return {count, last};
+}
+function updateStats(){
+  document.getElementById("stat-topics").textContent = Object.keys(topics).length;
+  document.getElementById("stat-posts").textContent = Object.keys(posts).length;
+  const people = new Set();
+  Object.values(topics).forEach(t => people.add(t.author||"匿名"));
+  Object.values(posts).forEach(p => people.add(p.author||"匿名"));
+  document.getElementById("stat-people").textContent = people.size;
+}
+
+function renderTopicsList(){
+  const q = document.getElementById("topic-search").value.trim().toLowerCase();
+  const entries = Object.entries(topics).filter(([id,t]) => !q || t.title.toLowerCase().includes(q));
+  entries.sort((a,b) => {
+    const sa = getTopicStats(a[0]).last || a[1].createdAt || 0;
+    const sb = getTopicStats(b[0]).last || b[1].createdAt || 0;
+    return sb - sa;
+  });
+  document.getElementById("topic-count-label").textContent = `共 ${Object.keys(topics).length} 個議題`;
+  const list = document.getElementById("topics-list");
+  if(entries.length === 0){
+    list.innerHTML = '<div class="empty-hint"><span class="big">🏁</span>還沒有議題，點右上角「＋ 新增議題」開始討論吧！</div>';
+    return;
+  }
+  list.innerHTML = entries.map(([id,t]) => {
+    const stats = getTopicStats(id);
+    const rootPost = getReplies(id, null)[0];
+    const preview = rootPost ? rootPost[1].content : "（尚無留言，點擊加入討論）";
+    const recent = isRecent(stats.last || t.createdAt);
+    return `
+      <div class="topic-card ${recent ? 'is-recent' : ''}" data-topic-id="${id}" style="border-top-color:${avatarColor(t.title)}">
+        ${isAdmin ? `<button class="topic-delete-btn" data-topic-id="${id}">🗑 刪除議題</button>` : ""}
+        <h3>${escapeHtml(t.title)} ${recent ? '<span class="new-badge">🆕 3天內有新動態</span>' : ""}</h3>
+        <div class="preview">${escapeHtml(preview)}</div>
+        <div class="meta">
+          ${avatarHtml(t.author)}
+          <span>發起人：<b>${escapeHtml(t.author||"匿名")}</b></span>
+          <span>💬 留言數：<b>${stats.count}</b></span>
+          <span>🕒 最後更新：${fmtTime(stats.last || t.createdAt)}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  list.querySelectorAll(".topic-card").forEach(card => {
+    card.addEventListener("click", () => openThread(card.dataset.topicId));
+  });
+  list.querySelectorAll(".topic-delete-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteTopic(btn.dataset.topicId);
+    });
+  });
+}
+document.getElementById("topic-search").addEventListener("input", renderTopicsList);
+
+document.getElementById("btn-new-topic").onclick = () => {
+  document.getElementById("new-topic-title").value = "";
+  document.getElementById("new-topic-mask").classList.add("open");
+};
+document.getElementById("new-topic-cancel").onclick = () => document.getElementById("new-topic-mask").classList.remove("open");
+document.getElementById("new-topic-submit").onclick = () => {
+  const title = document.getElementById("new-topic-title").value.trim();
+  if(!title){ alert("請輸入議題標題"); return; }
+  const author = getUserName() || "匿名";
+  const topicId = saveTopic({title, author, createdAt: Date.now()});
+  document.getElementById("new-topic-mask").classList.remove("open");
+  rerenderCurrentView();
+  if(!offlineMode){ setTimeout(() => openThread(topicId), 300); } else { openThread(topicId); }
+};
+
+let currentTopicId = null;
+
+function openThread(topicId){
+  currentTopicId = topicId;
+  document.getElementById("topics-view").style.display = "none";
+  document.getElementById("thread-view").style.display = "block";
+  document.getElementById("top-reply-content").value = "";
+  renderThread(topicId);
+}
+document.getElementById("btn-back").onclick = () => {
+  currentTopicId = null;
+  document.getElementById("thread-view").style.display = "none";
+  document.getElementById("topics-view").style.display = "block";
+  renderTopicsList();
+};
+
+function renderThread(topicId){
+  const t = topics[topicId];
+  if(!t){ document.getElementById("btn-back").click(); return; }
+  const stats = getTopicStats(topicId);
+  document.getElementById("thread-title").textContent = t.title;
+  document.getElementById("thread-meta").innerHTML =
+    `${avatarHtml(t.author)} 發起人：${escapeHtml(t.author||"匿名")} ・ 建立於 ${fmtTime(t.createdAt)} ・ 共 ${stats.count} 則留言`;
+  document.getElementById("posts-container").innerHTML = renderPostTree(topicId, null, 0);
+  attachPostEvents();
+
+  const deleteTopicBtn = document.getElementById("btn-delete-topic");
+  deleteTopicBtn.style.display = isAdmin ? "inline-block" : "none";
+  deleteTopicBtn.onclick = () => deleteTopic(topicId);
+}
+
+function renderPostTree(topicId, parentId, depth){
+  const replies = getReplies(topicId, parentId);
+  if(replies.length === 0) return "";
+  const depthColor = AVATAR_COLORS[depth % AVATAR_COLORS.length];
+  return replies.map(([id,p]) => {
+    const canDelete = (p.author === getUserName()) || isAdmin;
+    const recent = isRecent(p.createdAt);
+    return `
+    <div class="post" data-post-id="${id}" style="--depth-color:${depthColor}">
+      <div class="post-card ${recent ? 'is-recent' : ''}">
+        <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${recent ? '<span class="new-badge">🆕 New</span>' : ""}</div>
+        <div class="post-content">${escapeHtml(p.content)}</div>
+        <div class="post-actions">
+          <button class="reply-toggle-btn">↩ 回覆</button>
+          ${canDelete ? `<button class="delete-post-btn danger-text">🗑 刪除${isAdmin && p.author!==getUserName() ? "（管理者）" : ""}</button>` : ""}
+        </div>
+        <div class="reply-box">
+          <textarea rows="2" placeholder="回覆 ${escapeHtml(p.author||"匿名")} 的留言…"></textarea>
+          <button class="btn primary small reply-submit-btn" style="background:var(--accent-dark);color:#fff;border-color:var(--accent-dark);text-shadow:0 1px 2px rgba(0,0,0,.35);">送出回覆</button>
+        </div>
+      </div>
+      <div class="children">${renderPostTree(topicId, id, depth+1)}</div>
+    </div>
+  `;
+  }).join("");
+}
+
+function attachPostEvents(){
+  document.querySelectorAll(".reply-toggle-btn").forEach(btn => {
+    btn.onclick = () => {
+      const box = btn.closest(".post-card").querySelector(".reply-box");
+      box.classList.toggle("open");
+    };
+  });
+  document.querySelectorAll(".reply-submit-btn").forEach(btn => {
+    btn.onclick = () => {
+      const postEl = btn.closest(".post");
+      const parentId = postEl.dataset.postId;
+      const textarea = btn.closest(".reply-box").querySelector("textarea");
+      const content = textarea.value.trim();
+      if(!content){ alert("請輸入回覆內容"); return; }
+      const author = getUserName() || "匿名";
+      savePost({topicId: currentTopicId, parentId, author, content, createdAt: Date.now()});
+      textarea.value = "";
+      if(offlineMode) renderThread(currentTopicId);
+    };
+  });
+  document.querySelectorAll(".delete-post-btn").forEach(btn => {
+    btn.onclick = () => {
+      const postId = btn.closest(".post").dataset.postId;
+      deletePost(postId);
+    };
+  });
+}
+
+document.getElementById("btn-top-reply").onclick = () => {
+  const textarea = document.getElementById("top-reply-content");
+  const content = textarea.value.trim();
+  if(!content){ alert("請輸入留言內容"); return; }
+  const author = getUserName() || "匿名";
+  savePost({topicId: currentTopicId, parentId: null, author, content, createdAt: Date.now()});
+  textarea.value = "";
+  if(offlineMode) renderThread(currentTopicId);
+};
+
+document.getElementById("btn-export-excel").onclick = () => {
+  const topicIds = Object.keys(topics);
+  if(topicIds.length === 0){ alert("目前還沒有任何議題可以匯出"); return; }
+
+  const overviewRows = topicIds.map(id => {
+    const t = topics[id];
+    const stats = getTopicStats(id);
+    return {
+      "議題標題": t.title,
+      "發起人": t.author || "",
+      "建立時間": fmtTime(t.createdAt),
+      "留言數": stats.count,
+      "最後更新": fmtTime(stats.last || t.createdAt)
+    };
+  });
+
+  const detailRows = [];
+  topicIds.forEach(topicId => {
+    const t = topics[topicId];
+    function walk(parentId, depth, replyToAuthor){
+      getReplies(topicId, parentId).forEach(([id,p]) => {
+        const indent = "　".repeat(depth) + (depth > 0 ? "↳ " : "");
+        detailRows.push({
+          "議題": t.title,
+          "層級": depth,
+          "內容": indent + p.content,
+          "發言人": p.author || "",
+          "回覆對象": depth === 0 ? "(議題本身)" : replyToAuthor,
+          "發表時間": fmtTime(p.createdAt)
+        });
+        walk(id, depth+1, p.author);
+      });
+    }
+    walk(null, 0, "");
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(overviewRows);
+  ws1["!cols"] = [{wch:28},{wch:14},{wch:16},{wch:8},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, "議題總覽");
+
+  const ws2 = XLSX.utils.json_to_sheet(detailRows);
+  ws2["!cols"] = [{wch:24},{wch:6},{wch:50},{wch:12},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws2, "討論明細");
+
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `全國EMBA馬拉松_討論串整理_${today}.xlsx`);
+};
+
+updateStats();
+renderTopicsList();
+</script>
+</body>
+</html>
