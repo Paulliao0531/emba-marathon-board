@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>中央漾跑社 2026全國E馬討論區</title>
+<title>EMBA馬拉松</title>
 
 <script>
   const firebaseConfig = {
@@ -56,7 +56,7 @@
 
   header{
     padding:34px 24px 22px; text-align:center; position:relative; overflow:hidden; z-index:1;
-    background:linear-gradient(160deg,#3f7fc9 0%, var(--accent) 45%, var(--accent-dark) 100%);
+    background:linear-gradient(160deg,#7ec1f5 0%, #3f7fc9 30%, var(--accent) 55%, var(--accent-dark) 80%, #123a63 100%);
     color:#fff;
     border-radius:0 0 40px 40px;
     box-shadow:0 10px 0 rgba(20,60,110,.25), 0 20px 40px rgba(20,60,110,.25);
@@ -139,6 +139,11 @@
   }
   .topic-card.is-recent{ box-shadow:0 0 0 3px rgba(62,198,217,.35), 0 6px 0 rgba(0,0,0,.05), 0 14px 26px rgba(20,55,100,.1); }
   .post .post-card.is-recent{ background:linear-gradient(180deg,#eefaff,#e2f4fb); box-shadow:0 0 0 2px #b8e5f0, 0 4px 10px rgba(0,0,0,.05); }
+  .post .post-card.is-pinned{ background:linear-gradient(180deg,#fffbea,#fff3cf); box-shadow:0 0 0 2px #f4d58d, 0 4px 10px rgba(0,0,0,.05); }
+  .pinned-badge{
+    background:linear-gradient(180deg,#ffd166,#f4a533); color:#7a4a00; font-size:.64rem; font-weight:800;
+    padding:3px 10px; border-radius:999px; letter-spacing:.3px; white-space:nowrap; box-shadow:0 2px 0 #d98c1f;
+  }
 
   .avatar{
     display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
@@ -438,6 +443,15 @@ function avatarHtml(name, size){
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+function linkify(escapedText){
+  return escapedText.replace(/(https?:\/\/[^\s<]+)/g, url => {
+    let clean = url;
+    let trailing = "";
+    const m = clean.match(/[),.!?;:'"]+$/);
+    if(m){ trailing = m[0]; clean = clean.slice(0, -trailing.length); }
+    return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trailing}`;
+  });
+}
 function fmtTime(ts){
   if(!ts) return "";
   const d = new Date(ts);
@@ -448,7 +462,27 @@ function isRecent(ts){
 }
 function getReplies(topicId, parentId){
   return Object.entries(posts).filter(([id,p]) => p.topicId===topicId && (p.parentId||null)===(parentId||null))
-    .sort((a,b) => (a[1].createdAt||0) - (b[1].createdAt||0));
+    .sort((a,b) => {
+      const pa = a[1].pinned ? 1 : 0, pb = b[1].pinned ? 1 : 0;
+      if(pa !== pb) return pb - pa;
+      if(pa && pb) return (b[1].pinnedAt||0) - (a[1].pinnedAt||0);
+      return (a[1].createdAt||0) - (b[1].createdAt||0);
+    });
+}
+function togglePin(postId){
+  if(!isAdmin){ alert("只有管理者可以置頂留言"); return; }
+  const post = posts[postId];
+  if(!post) return;
+  const pinned = !post.pinned;
+  const updates = {pinned, pinnedAt: pinned ? Date.now() : null};
+  if(offlineMode){
+    offlinePosts[postId] = {...post, ...updates};
+    localStorage.setItem("emba_offline_posts", JSON.stringify(offlinePosts));
+    posts = offlinePosts;
+    rerenderCurrentView();
+  } else {
+    postsRef.child(postId).update(updates);
+  }
 }
 function getTopicStats(topicId){
   const all = Object.values(posts).filter(p => p.topicId===topicId);
@@ -563,13 +597,15 @@ function renderPostTree(topicId, parentId, depth){
   return replies.map(([id,p]) => {
     const canDelete = (p.author === getUserName()) || isAdmin;
     const recent = isRecent(p.createdAt);
+    const pinned = !!p.pinned;
     return `
     <div class="post" data-post-id="${id}" style="--depth-color:${depthColor}">
-      <div class="post-card ${recent ? 'is-recent' : ''}">
-        <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${recent ? '<span class="new-badge">🆕 New</span>' : ""}</div>
-        <div class="post-content">${escapeHtml(p.content)}</div>
+      <div class="post-card ${recent ? 'is-recent' : ''} ${pinned ? 'is-pinned' : ''}">
+        <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${pinned ? '<span class="pinned-badge">📌 置頂</span>' : ""}${recent ? '<span class="new-badge">🆕 New</span>' : ""}</div>
+        <div class="post-content">${linkify(escapeHtml(p.content))}</div>
         <div class="post-actions">
           <button class="reply-toggle-btn">↩ 回覆</button>
+          ${isAdmin ? `<button class="pin-post-btn">${pinned ? '📌 取消置頂' : '📌 置頂'}</button>` : ""}
           ${canDelete ? `<button class="delete-post-btn danger-text">🗑 刪除${isAdmin && p.author!==getUserName() ? "（管理者）" : ""}</button>` : ""}
         </div>
         <div class="reply-box">
@@ -607,6 +643,12 @@ function attachPostEvents(){
     btn.onclick = () => {
       const postId = btn.closest(".post").dataset.postId;
       deletePost(postId);
+    };
+  });
+  document.querySelectorAll(".pin-post-btn").forEach(btn => {
+    btn.onclick = () => {
+      const postId = btn.closest(".post").dataset.postId;
+      togglePin(postId);
     };
   });
 }
