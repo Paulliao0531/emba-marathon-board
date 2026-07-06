@@ -55,33 +55,38 @@
   @keyframes floaty{ 0%,100%{transform:translateY(0) translateX(0);} 50%{transform:translateY(-22px) translateX(10px);} }
 
   header{
-    padding:16px 24px 12px; text-align:center; position:relative; overflow:hidden; z-index:1;
+    padding:12px 20px 10px; text-align:center; position:relative; overflow:visible; z-index:1;
     background:linear-gradient(160deg,#7ec1f5 0%, #3f7fc9 30%, var(--accent) 55%, var(--accent-dark) 80%, #123a63 100%);
     color:#fff;
-    border-radius:0 0 28px 28px;
-    box-shadow:0 8px 0 rgba(20,60,110,.25), 0 16px 30px rgba(20,60,110,.25);
-    max-height:33vh; box-sizing:border-box;
+    border-radius:0 0 20px 20px;
+    box-shadow:0 6px 0 rgba(20,60,110,.25), 0 12px 24px rgba(20,60,110,.25);
+    box-sizing:border-box;
   }
   header::before{ content:""; position:absolute; top:-40px; right:-40px; width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,.15); }
   header::after{
-    content:""; display:block; height:4px; margin-top:10px;
+    content:""; display:block; height:4px; margin-top:8px;
     background-image:repeating-linear-gradient(90deg,#fff 0 18px, transparent 18px 32px);
     opacity:.6;
   }
-  header h1{ margin:0 0 4px; font-size:clamp(1.3rem, 3vw, 1.7rem); font-weight:800; letter-spacing:.5px; text-shadow:0 2px 5px rgba(5,20,45,.55), 0 3px 0 rgba(5,20,45,.5);}
+  h1.brand-row{
+    margin:0 0 2px; font-size:1rem; font-weight:800; letter-spacing:.5px;
+    display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+  }
+  .brand-title-block{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:center; }
   .brand-title{
-    height:4em; width:auto; vertical-align:middle;
+    height:2em; width:auto; vertical-align:middle;
     filter:
       drop-shadow(0 1px 0 rgba(255,255,255,.55))
       drop-shadow(0 2px 0 rgba(5,20,45,.35))
       drop-shadow(0 5px 8px rgba(5,20,45,.5));
   }
+  .brand-sub{ font-size:clamp(1rem, 2.4vw, 1.35rem); font-weight:800; letter-spacing:.5px; text-shadow:0 2px 5px rgba(5,20,45,.55), 0 3px 0 rgba(5,20,45,.5); white-space:nowrap; }
   .run-emoji{ display:inline-block; vertical-align:middle; filter:drop-shadow(0 1px 2px rgba(5,20,45,.35)); }
-  .run-emoji img{ display:block; height:4em; width:auto; }
+  .run-emoji img{ display:block; height:2.6em; width:auto; }
   @keyframes bounce{ 0%,100%{transform:translateY(0) rotate(0);} 30%{transform:translateY(-6px) rotate(-8deg);} 50%{transform:translateY(0) rotate(0);} 70%{transform:translateY(-3px) rotate(6deg);} }
-  header p{ margin:0; opacity:1; font-size:.78rem; font-weight:600; text-shadow:0 1px 4px rgba(5,20,45,.45);}
-  .topbar{ display:flex; justify-content:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
-  .topbar .btn{ padding:7px 14px; font-size:.78rem; }
+  header p{ margin:2px 0 0; opacity:1; font-size:.76rem; font-weight:600; text-shadow:0 1px 4px rgba(5,20,45,.45);}
+  .topbar{ display:flex; justify-content:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .topbar .btn{ padding:6px 13px; font-size:.76rem; }
   .btn{
     border:none; color:#fff; font-weight:700; font-family:inherit; text-shadow:0 1px 2px rgba(0,0,0,.35);
     background:linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,.08));
@@ -253,7 +258,13 @@
 <div id="status-banner">⚠️ 尚未連接資料庫：目前為離線示範模式，資料不會與其他人同步（請依教學設定 Firebase）。</div>
 
 <header>
-  <h1><span class="run-emoji" aria-hidden="true"><img src="松鼠.png" alt="" width="347" height="400" decoding="async"></span> <img class="brand-title" src="中央漾跑社.png" alt="中央漾跑社" decoding="async"><br>2026全國E馬 幹部討論區</h1>
+  <h1 class="brand-row">
+    <span class="run-emoji" aria-hidden="true"><img src="松鼠.png" alt="" width="347" height="400" decoding="async"></span>
+    <span class="brand-title-block">
+      <img class="brand-title" src="中央漾跑社.png" alt="中央漾跑社" decoding="async">
+      <span class="brand-sub">2026全國E馬 幹部討論區</span>
+    </span>
+  </h1>
   <p>發起議題、串連討論，所有人即時可見，一鍵整理匯出</p>
   <div class="topbar">
     <button class="btn primary" id="btn-new-topic">＋ 新增議題</button>
