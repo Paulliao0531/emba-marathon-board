@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
@@ -237,6 +237,12 @@
   }
   .children{ padding-left:18px; margin-left:12px; }
   .children .post{ border-left:2px solid #e0e3e7; padding-left:14px; margin-left:-4px; }
+  .post-root.has-replies > .post-card{ cursor:pointer; }
+  .post-root > .children{ display:none; }
+  .post-root.expanded > .children{ display:block; }
+  .reply-count-badge{ color:#5f6368; font-size:.76rem; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+  .chevron{ display:inline-block; transition:transform .15s ease; }
+  .post-root.expanded .chevron{ transform:rotate(90deg); }
 
   footer{ text-align:center; color:var(--muted); font-size:.75rem; padding:24px; position:relative; z-index:1; font-weight:500; }
 
@@ -696,9 +702,11 @@ document.getElementById("new-topic-submit").onclick = () => {
 };
 
 let currentTopicId = null;
+let expandedPosts = new Set();
 
 function openThread(topicId){
   currentTopicId = topicId;
+  expandedPosts = new Set();
   document.getElementById("topics-view").style.display = "none";
   document.getElementById("thread-view").style.display = "block";
   document.getElementById("top-reply-content").value = "";
@@ -737,12 +745,15 @@ function renderPostTree(topicId, parentId, depth){
   const replies = getReplies(topicId, parentId);
   if(replies.length === 0) return "";
   const depthColor = AVATAR_COLORS[depth % AVATAR_COLORS.length];
+  const isRoot = depth === 0;
   return replies.map(([id,p]) => {
     const canDelete = (p.author === getUserName()) || isAdmin;
     const recent = isRecent(p.createdAt);
     const pinned = !!p.pinned;
+    const replyCount = isRoot ? collectDescendants(id, []).length - 1 : 0;
+    const expanded = isRoot && expandedPosts.has(id);
     return `
-    <div class="post" data-post-id="${id}" style="--depth-color:${depthColor}">
+    <div class="post ${isRoot ? 'post-root' : ''} ${isRoot && replyCount > 0 ? 'has-replies' : ''} ${expanded ? 'expanded' : ''}" data-post-id="${id}" style="--depth-color:${depthColor}">
       <div class="post-card ${recent ? 'is-recent' : ''} ${pinned ? 'is-pinned' : ''}">
         <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${pinned ? '<span class="pinned-badge">📌 置頂</span>' : ""}${recent ? '<span class="new-badge">🆕 New</span>' : ""}</div>
         <div class="post-content">${linkify(escapeHtml(p.content))}</div>
@@ -750,6 +761,7 @@ function renderPostTree(topicId, parentId, depth){
           <button class="reply-toggle-btn">↩ 回覆</button>
           ${isAdmin ? `<button class="pin-post-btn">${pinned ? '📌 取消置頂' : '📌 置頂'}</button>` : ""}
           ${canDelete ? `<button class="delete-post-btn danger-text">🗑 刪除${isAdmin && p.author!==getUserName() ? "（管理者）" : ""}</button>` : ""}
+          ${isRoot && replyCount > 0 ? `<span class="reply-count-badge"><span class="chevron">▸</span> ${replyCount} 則回覆</span>` : ""}
         </div>
         <div class="reply-box">
           <textarea rows="2" placeholder="回覆 ${escapeHtml(p.author||"匿名")} 的留言…"></textarea>
@@ -763,6 +775,15 @@ function renderPostTree(topicId, parentId, depth){
 }
 
 function attachPostEvents(){
+  document.querySelectorAll(".post-root > .post-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      if(e.target.closest("button, textarea, a, .reply-box")) return;
+      const postEl = card.closest(".post-root");
+      const postId = postEl.dataset.postId;
+      if(expandedPosts.has(postId)){ expandedPosts.delete(postId); } else { expandedPosts.add(postId); }
+      postEl.classList.toggle("expanded");
+    });
+  });
   document.querySelectorAll(".reply-toggle-btn").forEach(btn => {
     btn.onclick = () => {
       const box = btn.closest(".post-card").querySelector(".reply-box");
