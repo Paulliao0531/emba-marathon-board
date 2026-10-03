@@ -184,6 +184,7 @@
     padding:3px 10px; border-radius:999px; letter-spacing:.3px; white-space:nowrap; border:1px solid #cfe4f5;
   }
   .topic-card.is-recent{ border-color:#8fc4e8; }
+  .post .new-badge{ background:#c62828; color:#fff; border-color:#b71c1c; }
   .post .post-card.is-recent{ border-color:#8fc4e8; }
   .post .post-card.is-pinned{ border-color:#f0c96b; background:#fffaf0; }
   .pinned-badge{
@@ -842,7 +843,7 @@ function renderPostTree(topicId, parentId, depth){
     return `
     <div class="post ${isRoot ? 'post-root' : ''} ${isRoot && replyCount > 0 ? 'has-replies' : ''} ${expanded ? 'expanded' : ''}" data-post-id="${id}" style="--depth-color:${depthColor}">
       <div class="post-card ${recent ? 'is-recent' : ''} ${pinned ? 'is-pinned' : ''}">
-        <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${pinned ? '<span class="pinned-badge">📌 置頂</span>' : ""}${recent ? '<span class="new-badge">🆕 New</span>' : ""}</div>
+        <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${pinned ? '<span class="pinned-badge">📌 置頂</span>' : ""}${recent ? '<span class="new-badge">NEW</span>' : ""}</div>
         <div class="post-content">${linkify(escapeHtml(p.content))}</div>
         <div class="post-actions">
           <button class="reply-toggle-btn">↩ 回覆</button>
