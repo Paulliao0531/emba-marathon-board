@@ -275,10 +275,10 @@
       <img class="brand-title" src="中央漾跑社.png" alt="中央漾跑社" decoding="async">
     </div>
     <div class="header-text">
-      <h1 class="brand-sub">2026全國E馬 幹部討論區</h1>
+      <h1 class="brand-sub">2026全國E馬 討論區</h1>
       <p>發起議題、串連討論，所有人即時可見，一鍵整理匯出</p>
       <div class="topbar">
-        <button class="btn primary" id="btn-new-topic">＋ 新增議題</button>
+        <button class="btn primary" id="btn-new-topic" style="display:none;">＋ 新增議題</button>
         <button class="btn" id="btn-export-excel">⬇️ 匯出討論 Excel</button>
         <button class="btn" id="btn-admin-toggle">🔐 管理者模式</button>
         <button class="btn" id="btn-change-name">👤 <span id="current-name">設定姓名</span></button>
@@ -387,6 +387,7 @@ try{
 function newId(prefix){ return prefix + "_" + Date.now() + "_" + (++idCounter); }
 
 function saveTopic(record){
+  if(!isAdmin){ alert("只有管理者可以新增議題"); return; }
   if(offlineMode){
     const id = newId("t");
     offlineTopics[id] = record;
@@ -517,6 +518,7 @@ adminBtn.onclick = () => {
     isAdmin = false;
     adminBtn.textContent = "🔐 管理者模式";
     adminBtn.classList.remove("admin-on");
+    document.getElementById("new-topic-mask").classList.remove("open");
   } else {
     const pw = prompt("請輸入管理者密碼：");
     if(pw === null) return;
@@ -525,6 +527,7 @@ adminBtn.onclick = () => {
     adminBtn.textContent = "🔓 管理者模式中";
     adminBtn.classList.add("admin-on");
   }
+  document.getElementById("btn-new-topic").style.display = isAdmin ? "" : "none";
   rerenderCurrentView();
 };
 
@@ -611,7 +614,7 @@ function renderTopicsList(){
   document.getElementById("topic-count-label").textContent = `共 ${Object.keys(topics).length} 個議題`;
   const list = document.getElementById("topics-list");
   if(entries.length === 0){
-    list.innerHTML = '<div class="empty-hint"><span class="big">🏁</span>還沒有議題，點右上角「＋ 新增議題」開始討論吧！</div>';
+    list.innerHTML = `<div class="empty-hint"><span class="big">🏁</span>${isAdmin ? '還沒有議題，點右上角「＋ 新增議題」開始討論吧！' : '目前沒有議題，請等待管理者新增議題。'}</div>`;
     return;
   }
   list.innerHTML = entries.map(([id,t]) => {
@@ -687,11 +690,13 @@ function renderSidebar(){
 document.getElementById("sidebar-overview").addEventListener("click", () => showTopicsOverview());
 
 document.getElementById("btn-new-topic").onclick = () => {
+  if(!isAdmin) return;
   document.getElementById("new-topic-title").value = "";
   document.getElementById("new-topic-mask").classList.add("open");
 };
 document.getElementById("new-topic-cancel").onclick = () => document.getElementById("new-topic-mask").classList.remove("open");
 document.getElementById("new-topic-submit").onclick = () => {
+  if(!isAdmin){ alert("只有管理者可以新增議題"); return; }
   const title = document.getElementById("new-topic-title").value.trim();
   if(!title){ alert("請輸入議題標題"); return; }
   const author = getUserName() || "匿名";
