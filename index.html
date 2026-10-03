@@ -127,6 +127,12 @@
     margin-bottom:3px; border-left:3px solid transparent; transition:background .15s ease, border-color .15s ease;
   }
   .sidebar-topic:hover{ background:#dadce0; }
+  .sidebar-topic[draggable="true"]{ cursor:grab; }
+  .sidebar-topic.dragging{ opacity:.4; cursor:grabbing; }
+  .sidebar-topic.drop-before{ box-shadow:0 -3px 0 var(--accent-dark); }
+  .sidebar-topic.drop-after{ box-shadow:0 3px 0 var(--accent-dark); }
+  .sidebar-drag-handle{ color:#5f6368; flex-shrink:0; user-select:none; }
+  .sidebar-sort-hint{ color:#5f6368; font-size:.8rem; padding:0 10px 10px; }
   .sidebar-topic.active{ background:var(--accent-light); border-left-color:var(--accent-dark); }
   .sidebar-topic.active:hover{ background:#c3e0fb; }
   .sidebar-topic-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -207,10 +213,10 @@
   .modal-actions{ display:flex; justify-content:flex-end; gap:10px; }
 
   #thread-view{ display:none; }
-  .thread-header{ margin-bottom:18px; background:#fff; border:1px solid #e0e3e7; border-radius:10px; padding:18px 20px; }
+  .thread-header{ margin-bottom:18px; background:#dcecfb; border:1px solid #a9c9e8; border-left:5px solid #28649b; border-radius:10px; padding:18px 20px; }
   .thread-header .back-btn{ margin-bottom:10px; }
-  .thread-header h2{ margin:0 0 6px; font-size:1.6rem; font-weight:800; color:#202124; }
-  .thread-header .meta{ color:#5f6368; font-size:.8rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:500; }
+  .thread-header h2{ margin:0 0 6px; font-size:1.6rem; font-weight:800; color:#173f65; }
+  .thread-header .meta{ color:#365570; font-size:.8rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:500; }
 
   .top-reply-box{ margin:18px 0 24px; background:#fff; border:1px solid #e0e3e7; border-radius:10px; padding:16px; }
   .top-reply-box textarea{
@@ -658,22 +664,65 @@ function renderTopicsList(){
 }
 document.getElementById("topic-search").addEventListener("input", renderTopicsList);
 
-function renderSidebar(){
-  const list = document.getElementById("sidebar-topics-list");
-  const entries = Object.entries(topics).sort((a,b) => {
+let draggedSidebarTopicId = null;
+let sidebarSortSaving = false;
+let sidebarClickBlockedUntil = 0;
+
+function getSidebarEntries(){
+  return Object.entries(topics).sort((a,b) => {
+    const rankA = Number.isFinite(a[1].sidebarOrder) ? a[1].sidebarOrder : Infinity;
+    const rankB = Number.isFinite(b[1].sidebarOrder) ? b[1].sidebarOrder : Infinity;
+    if(rankA !== rankB) return rankA < rankB ? -1 : 1;
     const sa = getTopicStats(a[0]).last || a[1].createdAt || 0;
     const sb = getTopicStats(b[0]).last || b[1].createdAt || 0;
-    return sb - sa;
+    return sb - sa || a[0].localeCompare(b[0]);
   });
+}
+
+async function moveSidebarTopic(sourceId, targetId, after){
+  if(!isAdmin || sidebarSortSaving || sourceId === targetId || !topics[sourceId] || !topics[targetId]) return;
+  const original = getSidebarEntries().map(([id]) => id);
+  const ordered = original.filter(id => id !== sourceId);
+  ordered.splice(ordered.indexOf(targetId) + (after ? 1 : 0), 0, sourceId);
+  if(ordered.every((id, index) => id === original[index])) return;
+  sidebarSortSaving = true;
+  renderSidebar();
+  try{
+    if(offlineMode){
+      const updated = {...offlineTopics};
+      ordered.forEach((id, index) => { updated[id] = {...updated[id], sidebarOrder:index}; });
+      localStorage.setItem("emba_offline_topics", JSON.stringify(updated));
+      offlineTopics = updated;
+      topics = offlineTopics;
+    } else {
+      const updates = {};
+      ordered.forEach((id, index) => { updates[`${id}/sidebarOrder`] = index; });
+      await topicsRef.update(updates);
+    }
+  } catch(error){
+    console.error("議題排序儲存失敗", error);
+    alert("議題排序儲存失敗，請確認連線或資料庫寫入權限後再試。");
+  } finally {
+    sidebarSortSaving = false;
+    renderSidebar();
+  }
+}
+
+function renderSidebar(){
+  const list = document.getElementById("sidebar-topics-list");
+  // 即時資料更新時先結束拖曳，避免使用已被替換的項目。
+  draggedSidebarTopicId = null;
+  const entries = getSidebarEntries();
   if(entries.length === 0){
     list.innerHTML = '<div class="sidebar-empty">尚無議題</div>';
     return;
   }
-  list.innerHTML = entries.map(([id,t]) => {
+  list.innerHTML = (isAdmin ? `<div class="sidebar-sort-hint">${sidebarSortSaving ? '正在儲存排序…' : '↕ 拖曳議題可調整順序'}</div>` : '') + entries.map(([id,t]) => {
     const stats = getTopicStats(id);
     const active = currentTopicId === id;
     return `
-      <div class="sidebar-topic ${active ? 'active' : ''}" data-topic-id="${id}">
+      <div class="sidebar-topic ${active ? 'active' : ''}" data-topic-id="${id}" draggable="${isAdmin && !sidebarSortSaving}">
+        ${isAdmin ? '<span class="sidebar-drag-handle" aria-hidden="true">⠿</span>' : ''}
         <span class="sidebar-topic-dot" style="background:${avatarColor(t.title)}"></span>
         <div class="sidebar-topic-info">
           <div class="sidebar-topic-title">${escapeHtml(t.title)}</div>
@@ -683,7 +732,40 @@ function renderSidebar(){
     `;
   }).join("");
   list.querySelectorAll(".sidebar-topic").forEach(el => {
-    el.addEventListener("click", () => openThread(el.dataset.topicId));
+    el.addEventListener("click", () => {
+      if(Date.now() >= sidebarClickBlockedUntil) openThread(el.dataset.topicId);
+    });
+    el.addEventListener("dragstart", e => {
+      if(!isAdmin || sidebarSortSaving){ e.preventDefault(); return; }
+      draggedSidebarTopicId = el.dataset.topicId;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", draggedSidebarTopicId);
+      el.classList.add("dragging");
+    });
+    el.addEventListener("dragover", e => {
+      if(!isAdmin || !draggedSidebarTopicId || draggedSidebarTopicId === el.dataset.topicId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      list.querySelectorAll(".sidebar-topic").forEach(item => item.classList.remove("drop-before", "drop-after"));
+      const rect = el.getBoundingClientRect();
+      el.classList.add(e.clientY < rect.top + rect.height / 2 ? "drop-before" : "drop-after");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("drop-before", "drop-after"));
+    el.addEventListener("drop", e => {
+      if(!isAdmin || !draggedSidebarTopicId) return;
+      e.preventDefault();
+      const sourceId = draggedSidebarTopicId;
+      const rect = el.getBoundingClientRect();
+      draggedSidebarTopicId = null;
+      sidebarClickBlockedUntil = Date.now() + 300;
+      list.querySelectorAll(".sidebar-topic").forEach(item => item.classList.remove("dragging", "drop-before", "drop-after"));
+      void moveSidebarTopic(sourceId, el.dataset.topicId, e.clientY >= rect.top + rect.height / 2);
+    });
+    el.addEventListener("dragend", () => {
+      draggedSidebarTopicId = null;
+      sidebarClickBlockedUntil = Date.now() + 300;
+      list.querySelectorAll(".sidebar-topic").forEach(item => item.classList.remove("dragging", "drop-before", "drop-after"));
+    });
   });
 }
 
