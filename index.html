@@ -225,6 +225,7 @@
     font-size:.88rem; font-family:inherit; resize:vertical; margin-bottom:10px; background:#fff;
   }
   .top-reply-box textarea:focus{ outline:none; border-color:#9aa0a6; }
+  #top-reply-content, #edit-post-content{ line-height:1.5; resize:none; overflow-y:auto; }
 
   .post{ position:relative; margin-top:14px; animation:fadeInUp .3s cubic-bezier(.34,1.56,.64,1) both; }
   .post .post-card{
@@ -232,7 +233,9 @@
   }
   .post .post-meta{ font-size:.74rem; color:#5f6368; margin-bottom:6px; display:flex; gap:8px; align-items:center; font-weight:500; }
   .post .post-meta .author{ color:#202124; font-weight:700; }
-  .post .post-content{ font-size:.9rem; white-space:pre-wrap; margin-bottom:8px; line-height:1.5; }
+  .post .post-content{ font-size:.9rem; white-space:pre-wrap; margin-bottom:8px; line-height:1.5; overflow-wrap:anywhere; cursor:pointer; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; max-height:4.5em; }
+  .post .post-content.content-expanded{ display:block; -webkit-line-clamp:unset; max-height:none; overflow:visible; }
+  .post .post-content:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
   .post .post-actions{ display:flex; gap:16px; align-items:center; }
   .post .post-actions button{ background:none; border:none; color:#5f6368; font-size:.76rem; cursor:pointer; padding:0; font-weight:600; }
   .post .post-actions button:hover{ color:#202124; }
@@ -329,7 +332,7 @@
           <div class="meta" id="thread-meta"></div>
         </div>
         <div class="top-reply-box">
-          <textarea id="top-reply-content" rows="2" placeholder="在這個議題下發表新留言…"></textarea>
+          <textarea id="top-reply-content" rows="8" placeholder="在這個議題下發表新留言…"></textarea>
           <button class="btn primary small" id="btn-top-reply" style="color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);background:var(--accent-dark);border-color:var(--accent-dark);">送出留言</button>
         </div>
         <div id="posts-container"></div>
@@ -347,6 +350,17 @@
     <div class="modal-actions">
       <button class="btn ghost" id="new-topic-cancel">取消</button>
       <button class="btn primary" id="new-topic-submit" style="background:var(--accent-dark);color:#fff;border-color:var(--accent-dark);text-shadow:0 1px 2px rgba(0,0,0,.35);">建立議題</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="edit-post-mask" role="dialog" aria-modal="true" aria-labelledby="edit-post-title">
+  <div class="modal-box">
+    <h3 id="edit-post-title">✏️ 編輯留言</h3>
+    <textarea id="edit-post-content" rows="8" aria-label="留言內容"></textarea>
+    <div class="modal-actions">
+      <button class="btn ghost" id="edit-post-cancel">取消</button>
+      <button class="btn primary" id="edit-post-save">儲存修改</button>
     </div>
   </div>
 </div>
@@ -425,6 +439,55 @@ function collectDescendants(postId, acc){
   Object.entries(posts).filter(([id,p]) => p.parentId === postId).forEach(([id]) => collectDescendants(id, acc));
   return acc;
 }
+
+let editingPostId = null;
+function canEditPost(post){
+  const name = getUserName();
+  return !!post && !!name && post.author === name;
+}
+function closePostEditor(){
+  document.getElementById("edit-post-mask").classList.remove("open");
+  editingPostId = null;
+}
+function editPost(postId){
+  if(!canEditPost(posts[postId])){ alert("只能編輯自己發表的留言"); return; }
+  editingPostId = postId;
+  const textarea = document.getElementById("edit-post-content");
+  textarea.value = posts[postId].content;
+  document.getElementById("edit-post-mask").classList.add("open");
+  textarea.focus();
+}
+document.getElementById("edit-post-cancel").onclick = closePostEditor;
+document.getElementById("edit-post-save").onclick = async () => {
+  const postId = editingPostId;
+  const post = posts[postId];
+  if(!canEditPost(post)){ alert("留言已不存在，或你不是原作者"); return; }
+  const content = document.getElementById("edit-post-content").value.trim();
+  if(!content){ alert("留言內容不可空白"); return; }
+  if(content === post.content){ closePostEditor(); return; }
+  const button = document.getElementById("edit-post-save");
+  button.disabled = true;
+  document.getElementById("edit-post-cancel").disabled = true;
+  try{
+    const updates = {content, editedAt: Date.now()};
+    if(offlineMode){
+      const updated = {...offlinePosts, [postId]: {...post, ...updates}};
+      localStorage.setItem("emba_offline_posts", JSON.stringify(updated));
+      offlinePosts = updated;
+      posts = offlinePosts;
+      rerenderCurrentView();
+    } else {
+      await postsRef.child(postId).update(updates);
+    }
+    closePostEditor();
+  } catch(error){
+    console.error("留言修改儲存失敗", error);
+    alert("修改儲存失敗，請確認連線或資料庫寫入權限後再試。");
+  } finally {
+    button.disabled = false;
+    document.getElementById("edit-post-cancel").disabled = false;
+  }
+};
 
 function deletePost(postId){
   const post = posts[postId];
@@ -791,10 +854,12 @@ document.getElementById("new-topic-submit").onclick = () => {
 
 let currentTopicId = null;
 let expandedPosts = new Set();
+let expandedPostContents = new Set();
 
 function openThread(topicId){
   currentTopicId = topicId;
   expandedPosts = new Set();
+  expandedPostContents = new Set();
   document.getElementById("topics-view").style.display = "none";
   document.getElementById("thread-view").style.display = "block";
   document.getElementById("top-reply-content").value = "";
@@ -844,9 +909,12 @@ function renderPostTree(topicId, parentId, depth){
     <div class="post ${isRoot ? 'post-root' : ''} ${isRoot && replyCount > 0 ? 'has-replies' : ''} ${expanded ? 'expanded' : ''}" data-post-id="${id}" style="--depth-color:${depthColor}">
       <div class="post-card ${recent ? 'is-recent' : ''} ${pinned ? 'is-pinned' : ''}">
         <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${pinned ? '<span class="pinned-badge">📌 置頂</span>' : ""}${recent ? '<span class="new-badge">NEW</span>' : ""}</div>
-        <div class="post-content">${linkify(escapeHtml(p.content))}</div>
+        <div class="post-content ${expandedPostContents.has(id) ? 'content-expanded' : ''}" tabindex="0" role="button" aria-expanded="${expandedPostContents.has(id)}" aria-label="展開或收合留言內容">${linkify(escapeHtml(p.content))}</div>
+        ${p.editedAt ? `<div class="post-meta">已編輯：${fmtTime(p.editedAt)}</div>` : ""}
         <div class="post-actions">
           <button class="reply-toggle-btn">↩ 回覆</button>
+          <button class="content-toggle-btn" aria-expanded="${expandedPostContents.has(id)}">${expandedPostContents.has(id) ? '收合全文' : '展開全文'}</button>
+          ${canEditPost(p) ? '<button class="edit-post-btn">✏️ 編輯</button>' : ""}
           ${isAdmin ? `<button class="pin-post-btn">${pinned ? '📌 取消置頂' : '📌 置頂'}</button>` : ""}
           ${canDelete ? `<button class="delete-post-btn danger-text">🗑 刪除${isAdmin && p.author!==getUserName() ? "（管理者）" : ""}</button>` : ""}
           ${isRoot && replyCount > 0 ? `<span class="reply-count-badge"><span class="chevron">▸</span> ${replyCount} 則回覆</span>` : ""}
@@ -863,6 +931,37 @@ function renderPostTree(topicId, parentId, depth){
 }
 
 function attachPostEvents(){
+  function togglePostContent(postEl){
+    const postId = postEl.dataset.postId;
+    const expanded = !expandedPostContents.has(postId);
+    if(expanded) expandedPostContents.add(postId); else expandedPostContents.delete(postId);
+    const card = postEl.querySelector('.post-card');
+    const content = card.querySelector('.post-content');
+    content.classList.toggle('content-expanded', expanded);
+    content.setAttribute('aria-expanded', String(expanded));
+    const button = card.querySelector('.content-toggle-btn');
+    button.textContent = expanded ? '收合全文' : '展開全文';
+    button.setAttribute('aria-expanded', String(expanded));
+  }
+  document.querySelectorAll('.post-content').forEach(content => {
+    content.addEventListener('click', e => {
+      if(e.target.closest('a')) return;
+      e.stopPropagation();
+      togglePostContent(content.closest('.post'));
+    });
+    content.addEventListener('keydown', e => {
+      if(e.target !== content || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      togglePostContent(content.closest('.post'));
+    });
+  });
+  document.querySelectorAll('.content-toggle-btn').forEach(btn => {
+    btn.onclick = () => togglePostContent(btn.closest('.post'));
+  });
+  document.querySelectorAll(".edit-post-btn").forEach(btn => {
+    btn.onclick = () => editPost(btn.closest(".post").dataset.postId);
+  });
   document.querySelectorAll(".post-root > .post-card").forEach(card => {
     card.addEventListener("click", (e) => {
       if(e.target.closest("button, textarea, a, .reply-box")) return;
