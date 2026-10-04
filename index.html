@@ -226,6 +226,11 @@
   }
   .top-reply-box textarea:focus{ outline:none; border-color:#9aa0a6; }
   #top-reply-content, #edit-post-content{ line-height:1.5; resize:none; overflow-y:auto; }
+  .format-toolbar{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .format-toolbar button{ border:1px solid #cfd8e3; background:#fff; border-radius:6px; padding:5px 10px; cursor:pointer; font:inherit; font-size:.82rem; }
+  .format-toolbar button:hover{ background:#edf5ff; }
+  .format-toolbar .format-hint{ font-size:.74rem; color:#5f6368; }
+  .text-red{ color:#c62828; } .text-blue{ color:#1565c0; } .text-green{ color:#237a35; }
 
   .post{ position:relative; margin-top:14px; animation:fadeInUp .3s cubic-bezier(.34,1.56,.64,1) both; }
   .post .post-card{
@@ -626,6 +631,50 @@ function linkify(escapedText){
     return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trailing}`;
   });
 }
+// Only these explicit formatting markers are interpreted; user HTML remains text.
+function formatPostContent(value, plainText = false){
+  const text = String(value || '');
+  const pattern = /\*\*([\s\S]+?)\*\*|\[color=(red|blue|green)\]([\s\S]*?)\[\/color\]/g;
+  let result = '', offset = 0;
+  const literal = part => plainText ? part : linkify(escapeHtml(part));
+  for(const match of text.matchAll(pattern)){
+    result += literal(text.slice(offset, match.index));
+    const inner = formatPostContent(match[1] !== undefined ? match[1] : match[3], plainText);
+    result += plainText ? inner : match[1] !== undefined ? `<strong>${inner}</strong>` : `<span class="text-${match[2]}">${inner}</span>`;
+    offset = match.index + match[0].length;
+  }
+  return result + literal(text.slice(offset));
+}
+function formattingToolbarHtml(){
+  return `<div class="format-toolbar" role="group" aria-label="文字格式">
+    <button type="button" data-format="bold" aria-label="粗體"><strong>B 粗體</strong></button>
+    <button type="button" data-format="red" class="text-red">紅色</button>
+    <button type="button" data-format="blue" class="text-blue">藍色</button>
+    <button type="button" data-format="green" class="text-green">綠色</button>
+    <span class="format-hint">選取文字後套用，發表後顯示格式</span>
+  </div>`;
+}
+function installFormattingToolbar(textarea){
+  if(textarea.previousElementSibling?.classList.contains('format-toolbar')) return;
+  textarea.insertAdjacentHTML('beforebegin', formattingToolbarHtml());
+  textarea.previousElementSibling.querySelectorAll('[data-format]').forEach(button => {
+    button.addEventListener('mousedown', e => e.preventDefault());
+    button.addEventListener('click', () => {
+      const start = textarea.selectionStart, end = textarea.selectionEnd;
+      const selected = textarea.value.slice(start, end) || '文字';
+      const format = button.dataset.format;
+      const prefix = format === 'bold' ? '**' : `[color=${format}]`;
+      const suffix = format === 'bold' ? '**' : '[/color]';
+      textarea.setRangeText(prefix + selected + suffix, start, end, 'select');
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+      textarea.dispatchEvent(new Event('input', {bubbles:true}));
+    });
+  });
+}
+installFormattingToolbar(document.getElementById('top-reply-content'));
+installFormattingToolbar(document.getElementById('edit-post-content'));
+
 function fmtTime(ts){
   if(!ts) return "";
   const d = new Date(ts);
@@ -700,7 +749,7 @@ function renderTopicsList(){
           <button class="topic-delete-btn" data-topic-id="${id}">🗑 刪除</button>
         </div>` : ""}
         <h3 class="${isAdmin ? 'has-admin-actions' : ''}">${escapeHtml(t.title)} ${recent ? '<span class="new-badge">🆕 3天內有新動態</span>' : ""}</h3>
-        <div class="preview">${escapeHtml(preview)}</div>
+        <div class="preview">${escapeHtml(formatPostContent(preview, true))}</div>
         <div class="meta">
           ${avatarHtml(t.author)}
           <span>發起人：<b>${escapeHtml(t.author||"匿名")}</b></span>
@@ -909,7 +958,7 @@ function renderPostTree(topicId, parentId, depth){
     <div class="post ${isRoot ? 'post-root' : ''} ${isRoot && replyCount > 0 ? 'has-replies' : ''} ${expanded ? 'expanded' : ''}" data-post-id="${id}" style="--depth-color:${depthColor}">
       <div class="post-card ${recent ? 'is-recent' : ''} ${pinned ? 'is-pinned' : ''}">
         <div class="post-meta">${avatarHtml(p.author)}<span class="author">${escapeHtml(p.author||"匿名")}</span><span>${fmtTime(p.createdAt)}</span>${pinned ? '<span class="pinned-badge">📌 置頂</span>' : ""}${recent ? '<span class="new-badge">NEW</span>' : ""}</div>
-        <div class="post-content ${expandedPostContents.has(id) ? 'content-expanded' : ''}" tabindex="0" role="button" aria-expanded="${expandedPostContents.has(id)}" aria-label="展開或收合留言內容">${linkify(escapeHtml(p.content))}</div>
+        <div class="post-content ${expandedPostContents.has(id) ? 'content-expanded' : ''}" tabindex="0" role="button" aria-expanded="${expandedPostContents.has(id)}" aria-label="展開或收合留言內容">${formatPostContent(p.content)}</div>
         ${p.editedAt ? `<div class="post-meta">已編輯：${fmtTime(p.editedAt)}</div>` : ""}
         <div class="post-actions">
           <button class="reply-toggle-btn">↩ 回覆</button>
@@ -931,6 +980,7 @@ function renderPostTree(topicId, parentId, depth){
 }
 
 function attachPostEvents(){
+  document.querySelectorAll('.reply-box textarea').forEach(installFormattingToolbar);
   function togglePostContent(postEl){
     const postId = postEl.dataset.postId;
     const expanded = !expandedPostContents.has(postId);
@@ -1039,7 +1089,7 @@ document.getElementById("btn-export-excel").onclick = () => {
         detailRows.push({
           "議題": t.title,
           "層級": depth,
-          "內容": indent + p.content,
+          "內容": indent + formatPostContent(p.content, true),
           "發言人": p.author || "",
           "回覆對象": depth === 0 ? "(議題本身)" : replyToAuthor,
           "發表時間": fmtTime(p.createdAt)
